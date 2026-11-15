@@ -1,0 +1,47 @@
+name: Deploy ConvertFlow Pro
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install exact media dependencies
+        run: npm install --no-save --no-package-lock --ignore-scripts @ffmpeg/ffmpeg@0.12.15 @ffmpeg/core@0.12.9 jszip@3.10.1
+      - name: Assemble static website
+        run: |
+          mkdir -p dist/vendor
+          cp index.html style.css app.js dist/
+          cp node_modules/@ffmpeg/ffmpeg/dist/umd/ffmpeg.js dist/vendor/ffmpeg.js
+          cp node_modules/@ffmpeg/ffmpeg/dist/umd/814.ffmpeg.js dist/vendor/814.ffmpeg.js
+          cp node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.js dist/vendor/ffmpeg-core.js
+          cp node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.wasm dist/vendor/ffmpeg-core.wasm
+          cp node_modules/jszip/dist/jszip.min.js dist/vendor/jszip.min.js
+          touch dist/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
